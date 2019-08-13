@@ -31,7 +31,7 @@ mutable struct MOISolution
     time::Float64
     final_rank::Int
 end
-MOISolution() = MOISolution(0, # SCS_UNFINISHED
+MOISolution() = MOISolution(0, 
                       Float64[], Float64[], Float64[], NaN, NaN, NaN, NaN, NaN, NaN, 0)
 
 # Used to build the data with allocate-load during `copy_to`.
@@ -254,8 +254,8 @@ constrrows(s::MOI.AbstractVectorSet) = 1:MOI.dimension(s)
 # When only the index is available, use the `optimizer.ncone.nrows` field
 constrrows(optimizer::Optimizer, ci::CI{<:MOI.AbstractScalarFunction, <:MOI.AbstractScalarSet}) = 1
 constrrows(optimizer::Optimizer, ci::CI{<:MOI.AbstractVectorFunction, <:MOI.AbstractVectorSet}) = 1:optimizer.cone.nrows[constroffset(optimizer, ci)]
-MOIU.load_constraint(optimizer::Optimizer, ci, f::MOI.SingleVariable, s) = MOIU.load_constraint(optimizer, ci, MOI.ScalarAffineFunction{Float64}(f), s)
-function MOIU.load_constraint(optimizer::Optimizer, ci, f::MOI.ScalarAffineFunction, s::MOI.AbstractScalarSet)
+MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex, f::MOI.SingleVariable, s) = MOIU.load_constraint(optimizer, ci, MOI.ScalarAffineFunction{Float64}(f), s)
+function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex, f::MOI.ScalarAffineFunction, s::MOI.AbstractScalarSet)
     a = sparsevec(variable_index_value.(f.terms), coefficient.(f.terms))
     # sparsevec combines duplicates with + but does not remove zeros created so we call dropzeros!
     dropzeros!(a)
@@ -264,7 +264,7 @@ function MOIU.load_constraint(optimizer::Optimizer, ci, f::MOI.ScalarAffineFunct
     i = offset + row
     # The SCS format is b - Ax ∈ cone
     # so minus=false for b and minus=true for A
-    setconstant = MOIU.getconstant(s)
+    setconstant = MOIU.constant(s)
     optimizer.cone.setconstant[offset] = setconstant
     constant = f.constant - setconstant
     optimizer.data.b[i] = scalecoef(row, constant, false, s)
@@ -282,10 +282,10 @@ function orderidx(idx, s::MOI.PositiveSemidefiniteConeTriangle)
     sympackedUtoLidx(idx, s.side_dimension)
 end
 
-function MOIU.load_constraint(optimizer::Optimizer, ci, f::MOI.VectorOfVariables, s)
+function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex, f::MOI.VectorOfVariables, s)
     MOIU.load_constraint(optimizer, ci, MOI.VectorAffineFunction{Float64}(f), s)
 end
-function MOIU.load_constraint(optimizer::Optimizer, ci,
+function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex,
                               f::MOI.VectorOfVariables,
                               s::MOI.PositiveSemidefiniteConeTriangle)
                               try
@@ -298,12 +298,12 @@ function MOIU.load_constraint(optimizer::Optimizer, ci,
                               end
     nothing
 end
-function MOIU.load_constraint(optimizer::Optimizer, ci, f::MOI.VectorOfVariables,
+function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex, f::MOI.VectorOfVariables,
                               s::MOI.SecondOrderCone)
     push!(optimizer.data.so, orderval(variable_index_value.(f.variables), s))
     nothing
 end
-function MOIU.load_constraint(optimizer::Optimizer, ci,
+function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex,
                               f::MOI.VectorAffineFunction,
                               s::MOI.AbstractVectorSet)
     A = sparse(output_index.(f.terms), variable_index_value.(f.terms),
@@ -724,6 +724,7 @@ function MOI.get(optimizer::Optimizer, ::MOI.TerminationStatus)
 end
 
 MOI.get(optimizer::Optimizer, ::MOI.ObjectiveValue) = optimizer.sol.objval
+MOI.get(optimizer::Optimizer, ::MOI.DualObjectiveValue) = optimizer.sol.dual_objval
 
 function MOI.get(optimizer::Optimizer, ::MOI.PrimalStatus)
     s = optimizer.sol.ret_val
@@ -750,6 +751,12 @@ function MOI.get(optimizer::Optimizer, ::MOI.ResultCount)
         return 1
     end
 end
+
+MOI.supports(::Optimizer, ::MOI.Silent) = true
+function MOI.set(optimizer::Optimizer, ::MOI.Silent, value::Bool)
+    optimizer.params.log_verbose = value
+end
+MOI.get(optimizer::Optimizer, ::MOI.Silent) = optimizer.params.log_verbose
 
 #=
     Solution

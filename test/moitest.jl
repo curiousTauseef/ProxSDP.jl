@@ -28,7 +28,7 @@ const config_conic = MOIT.TestConfig(atol=1e-3, rtol=1e-3, duals = false, infeas
 end
 
 @testset "Unit" begin
-    MOIT.unittest(MOIB.SplitInterval{Float64}(optimizer_lin), config,[
+    MOIT.unittest(MOIB.Constraint.SplitInterval{Float64}(optimizer_lin), config,[
         # Quadratic functions are not supported
         "solve_qcp_edge_cases", "solve_qp_edge_cases",
         # Integer and ZeroOne sets are not supported
@@ -38,7 +38,7 @@ end
 end
 
 @testset "MOI Continuous Linear" begin
-    MOIT.contlineartest(MOIB.SplitInterval{Float64}(optimizer_lin), config, [
+    MOIT.contlineartest(MOIB.Constraint.SplitInterval{Float64}(optimizer_lin), config, [
         # infeasible/unbounded
         # "linear8a", "linear8b", "linear8c", "linear12",
         # linear10 is poorly conditioned
@@ -70,7 +70,7 @@ end
 end
 
 @testset "MOI Continuous Conic with VectorSlack" begin
-    MOIT.contconictest(MOIB.VectorSlack{Float64}(optimizer_con2), config_conic, [
+    MOIT.contconictest(MOIB.Constraint.VectorSlack{Float64}(optimizer_con2), config_conic, [
         # bridge
         "rootdet","geomean",
         # affine in cone
