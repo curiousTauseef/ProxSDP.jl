@@ -96,10 +96,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     maxsense::Bool
     data::Union{Nothing, ModelData} # only non-Void between MOI.copy_to and MOI.optimize!
     sol::MOISolution
+    silent::Bool
 
     params
     function Optimizer(args)
-        new(ConeData(), false, nothing, MOISolution(), args)
+        new(ConeData(), false, nothing, MOISolution(), false, args)
     end
 end
 function Optimizer(;args...)
@@ -264,7 +265,7 @@ function MOIU.load_constraint(optimizer::Optimizer, ci::MOI.ConstraintIndex, f::
     i = offset + row
     # The SCS format is b - Ax ∈ cone
     # so minus=false for b and minus=true for A
-    setconstant = MOIU.constant(s)
+    setconstant = MOI.constant(s)
     optimizer.cone.setconstant[offset] = setconstant
     constant = f.constant - setconstant
     optimizer.data.b[i] = scalecoef(row, constant, false, s)
@@ -424,6 +425,9 @@ function MOI.optimize!(optimizer::Optimizer)
 
     # parse options
     options = Options(optimizer.params)
+
+    # Set log_verbose to false if silent is true
+    options.log_verbose = optimizer.silent ? false : options.log_verbose
 
     cone = optimizer.cone
 
@@ -754,9 +758,16 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(optimizer::Optimizer, ::MOI.Silent, value::Bool)
-    optimizer.params.log_verbose = value
+    optimizer.silent = value
 end
-MOI.get(optimizer::Optimizer, ::MOI.Silent) = optimizer.params.log_verbose
+MOI.get(optimizer::Optimizer, ::MOI.Silent) = optimizer.silent
+
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
+function MOI.set(optimizer::Optimizer, ::MOI.TimeLimitSec, limit::Real)
+    # TODO
+end
+MOI.get(optimizer::Optimizer, ::MOI.Silent) = optimizer.silent
+
 
 #=
     Solution

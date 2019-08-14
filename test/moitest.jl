@@ -1,5 +1,3 @@
-push!(Base.LOAD_PATH,joinpath(dirname(@__FILE__),"..",".."))
-
 using ProxSDP, MathOptInterface, Test, LinearAlgebra, Random, SparseArrays, DelimitedFiles
 
 const MOI = MathOptInterface
@@ -7,18 +5,20 @@ const MOIT = MOI.Test
 const MOIB = MOI.Bridges
 const MOIU = MOI.Utilities
 
-MOIU.@model ProxSDPModelData () (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan) (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.SecondOrderCone, MOI.PositiveSemidefiniteConeTriangle) () (MOI.SingleVariable,) (MOI.ScalarAffineFunction,) (MOI.VectorOfVariables,) (MOI.VectorAffineFunction,)
+# MOIU.@model ProxSDPModelData () (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan) (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.SecondOrderCone, MOI.PositiveSemidefiniteConeTriangle) () (MOI.SingleVariable,) (MOI.ScalarAffineFunction,) (MOI.VectorOfVariables,) (MOI.VectorAffineFunction,)
 
-const optimizer = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
-const optimizer_lin = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
-const optimizer_con = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6, log_verbose = false))
-const optimizer_con2 = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(tol_soc = 1e-3, tol_primal = 1e-6, tol_dual = 1e-6, log_verbose = false, max_iter = 1_000_000))
-const optimizer_lin_hd = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
-const optimizer3 = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(log_freq = 1000, log_verbose = false, tol_primal = 1e-6, tol_dual = 1e-6))
-const optimizer_log = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(log_freq = 10, log_verbose = true, tol_primal = 1e-6, tol_dual = 1e-6))
-const optimizer_unsupportedarg = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(unsupportedarg = 10))
-const optimizer_maxiter = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(max_iter = 1, log_verbose = true))
-const optimizer_timelimit = MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(time_limit = 0.0001, log_verbose = true))
+const cache = MOIU.UniversalFallback(MOIU.Model{Float64}())
+
+const optimizer = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
+const optimizer_lin = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
+const optimizer_con = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6, log_verbose = false))
+const optimizer_con2 = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(tol_soc = 1e-3, tol_primal = 1e-6, tol_dual = 1e-6, log_verbose = false, max_iter = 1_000_000))
+const optimizer_lin_hd = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(tol_primal = 1e-6, tol_dual = 1e-6))
+const optimizer3 = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(log_freq = 1000, log_verbose = false, tol_primal = 1e-6, tol_dual = 1e-6))
+const optimizer_log = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(log_freq = 10, log_verbose = true, tol_primal = 1e-6, tol_dual = 1e-6))
+const optimizer_unsupportedarg = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(unsupportedarg = 10))
+const optimizer_maxiter = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(max_iter = 1, log_verbose = true))
+const optimizer_timelimit = MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(time_limit = 0.0001, log_verbose = true))
 
 const config = MOIT.TestConfig(atol=1e-3, rtol=1e-3, infeas_certificates = false)
 const config_conic = MOIT.TestConfig(atol=1e-3, rtol=1e-3, duals = false, infeas_certificates = false)
@@ -556,11 +556,11 @@ end
 end
 
 @testset "Full eig" begin
-    MOIT.psdt0vtest(MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(full_eig_decomp = true, tol_primal = 1e-4, tol_dual = 1e-4)), MOIT.TestConfig(atol=1e-3, rtol=1e-3, duals = false))
+    MOIT.psdt0vtest(MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(full_eig_decomp = true, tol_primal = 1e-4, tol_dual = 1e-4)), MOIT.TestConfig(atol=1e-3, rtol=1e-3, duals = false))
 end
 
 @testset "Print" begin
-    MOIT.linear15test(MOIU.CachingOptimizer(ProxSDPModelData{Float64}(), ProxSDP.Optimizer(log_freq = 10, log_verbose = true, timer_verbose = true, tol_primal = 1e-4, tol_dual = 1e-4)), MOIT.TestConfig(atol=1e-3, rtol=1e-3))
+    MOIT.linear15test(MOIU.CachingOptimizer(cache, ProxSDP.Optimizer(log_freq = 10, log_verbose = true, timer_verbose = true, tol_primal = 1e-4, tol_dual = 1e-4)), MOIT.TestConfig(atol=1e-3, rtol=1e-3))
 end
 
 @testset "Unsupported argument" begin
